@@ -1,0 +1,15 @@
+[package]
+name = "libflipnote"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+#ez error handling
+anyhow = "1.0.93"
+#binary parsing library
+binrw = "0.14.1"
+#image processing library. takes microseconds to create an image vs milliseconds with image-rs
+photon-rs = "0.3.2"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
