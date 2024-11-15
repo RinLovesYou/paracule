@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
 use anyhow::{ensure, Result};
-use photon_rs::{native::open_image, transform::{resize, SamplingFilter}, PhotonImage};
+use photon_rs::{
+    native::open_image,
+    transform::{resize, SamplingFilter},
+    PhotonImage,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct RgbWrapper {
@@ -84,9 +88,11 @@ impl ImageWrapper {
     }
 
     pub fn get_pixels(&self) -> Result<Vec<RgbWrapper>> {
-        let pixels = self.buffer.chunks(4).map(|pixel| {
-            RgbWrapper::new(pixel[0], pixel[1], pixel[2])
-        }).collect();
+        let pixels = self
+            .buffer
+            .chunks(4)
+            .map(|pixel| RgbWrapper::new(pixel[0], pixel[1], pixel[2]))
+            .collect();
 
         Ok(pixels)
     }

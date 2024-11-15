@@ -8,6 +8,7 @@ use sha1_checked::Sha1;
 use crate::utils::crypto::hash_data;
 
 use super::{
+    audio::audio::PPMAudio,
     constants::{FLIPNOTE_STUDIO_PUBLIC_KEY, PPM_FORMAT_VERSION},
     thumbnail::PPMThumbnail,
 };
@@ -53,35 +54,15 @@ pub struct PPMFile {
     #[br(count = animation_data_size)]
     animation_data: Vec<u8>,
 
-    //Sound Effect Flags
-    #[brw(seek_before = std::io::SeekFrom::Start((0x6A0 + animation_data_size) as u64))]
-    #[br(count = frame_count + 1)]
-    sound_effect_flags: Vec<u8>,
-
     //not part of the spec, just a bit more readable to calculate this here instead. Used to calc padding before sound header.
     #[br(calc((0x6A0 + animation_data_size + ((frame_count + 1) as u32)) as u64))]
     #[bw(ignore)]
     _sound_header_start: u64,
 
     //Sound Header
-    #[brw(pad_before = (4 - _sound_header_start % 4) % 4)]
-    bgm_track_size: u32,
-    se1_track_size: u32,
-    se2_track_size: u32,
-    se3_track_size: u32,
-    frame_playback_speed: u8,
-    frame_playback_speed_when_recording: u8,
-
-    //Sound Data
-    #[brw(pad_before = 14)]
-    #[br(count = bgm_track_size)]
-    raw_bgm_track: Vec<u8>,
-    #[br(count = se1_track_size)]
-    raw_se1_track: Vec<u8>,
-    #[br(count = se2_track_size)]
-    raw_se2_track: Vec<u8>,
-    #[br(count = se3_track_size)]
-    raw_se3_track: Vec<u8>,
+    #[brw(seek_before = std::io::SeekFrom::Start((0x6A0 + animation_data_size) as u64))]
+    #[brw(args((frame_count + 1, _sound_header_start + 1 - 1)))]
+    pub audio: PPMAudio,
 
     //Signature
     #[br(count = 0x80)]

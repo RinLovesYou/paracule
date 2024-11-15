@@ -13,6 +13,12 @@ fn main() -> Result<()> {
         .get_image()?
         .save_as("/home/sarah/Pictures/bokeh_thumbnail.png")?;
 
+    // Save all audio (including sound effects) as WAV files
+    ppm_file
+        .audio
+        .get_mixed_sound_track_wav(32768)?
+        .save_as("/home/sarah/Music/bokeh.wav")?;
+
     // Verify the signature
     ensure!(
         ppm_file.verify_signature()?,
