@@ -20,3 +20,12 @@ pub const ADPCM_STEP_TABLE: [i32; 90] = [
 ];
 
 pub const ADPCM_INDEX_TABLE: [i32; 16] = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8];
+
+// Flipnote Studio public key, used to verify the signature of a PPM file.
+// This can NOT be used to sign them.
+pub const FLIPNOTE_STUDIO_PUBLIC_KEY: &str = "-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDCPLwTL6oSflv+gjywi/sM0TUB
+90xqOvuCpjduETjPoN2FwMebxNjdKIqHUyDu4AvrQ6BDJc6gKUbZ1E27BGZoCPH4
+9zQRb+zAM6M9EjHwQ6BABr0u2TcF7xGg2uQ9MBWz9AfbVQ91NjfrNWo0f7UPmffv
+1VvixmTk1BCtavZxBwIDAQAB
+-----END PUBLIC KEY-----";

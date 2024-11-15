@@ -2,9 +2,11 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use binrw::binrw;
-use photon_rs::{native::save_image, PhotonImage};
 
-use crate::utils::color_utils::thumbnail_pixel_to_rgb;
+use crate::utils::{
+    color_utils::{rgb_to_thumbnail_pixel, thumbnail_pixel_to_rgb},
+    image_utils::ImageWrapper,
+};
 
 #[binrw]
 #[brw(little)]
@@ -15,25 +17,20 @@ pub struct PPMThumbnailTile {
 }
 
 impl PPMThumbnailTile {
-    pub fn get_raw_pixels(&self) -> Result<Vec<u8>> {
-
-        // One tile represents an 8x8 pixel area. Photon, our image library, expects an array of RGBA values, i.e. 4 bytes per pixel.
-        let mut raw_pixels = vec![0; 8 * 8 * 4];
+    pub fn get_image(&self) -> Result<ImageWrapper> {
+        let mut image = ImageWrapper::new(8, 8);
 
         for (i, pixel) in self.pixels.iter().enumerate() {
-            // Thumbnails have a preset color palette, so instead of storing actual color information, PPM files store an index to the color palette.
-            // Therefore, two pixel colors can be compressed into a single byte.
             let colors = thumbnail_pixel_to_rgb(*pixel)?;
 
-            let pixel_index = i * 8;
+            let pixel_x = (i % 4) * 2;
+            let pixel_y = i / 4;
 
-            raw_pixels[pixel_index..pixel_index + 8].copy_from_slice(&[
-                colors.0.get_red(), colors.0.get_green(), colors.0.get_blue(), 255,
-                colors.1.get_red(), colors.1.get_green(), colors.1.get_blue(), 255,
-            ]);
+            image.set_pixel(pixel_x as u32, pixel_y as u32, colors.0)?;
+            image.set_pixel(pixel_x as u32 + 1, pixel_y as u32, colors.1)?;
         }
 
-        Ok(raw_pixels)
+        Ok(image)
     }
 }
 
@@ -46,33 +43,66 @@ pub struct PPMThumbnail {
 }
 
 impl PPMThumbnail {
-    pub fn get_image(&self) -> Result<PhotonImage> {
-        let mut raw_pixels = vec![0; 64 * 48 * 4];
+    pub fn get_image(&self) -> Result<ImageWrapper> {
+        let mut thumbnail = ImageWrapper::new(64, 48);
 
         for (i, tile) in self.tiles.iter().enumerate() {
-            let tile_raw_pixels = tile.get_raw_pixels()?;
+            let tile_image = tile.get_image()?;
             let tile_x = i % 8;
             let tile_y = i / 8;
 
-            for (j, pixel) in tile_raw_pixels.chunks(4).enumerate() {
-                let pixel_x = j % 8;
-                let pixel_y = j / 8;
+            for (i, pixel) in tile_image.get_pixels()?.iter().enumerate() {
+                let pixel_x = i % 8;
+                let pixel_y = i / 8;
 
-                let pixel_index = ((tile_y * 8 + pixel_y) * 64 + tile_x * 8 + pixel_x) * 4;
-                raw_pixels[pixel_index..pixel_index + 4].copy_from_slice(pixel);
+                thumbnail.set_pixel(
+                    tile_x as u32 * 8 + pixel_x as u32,
+                    tile_y as u32 * 8 + pixel_y as u32,
+                    *pixel,
+                )?;
             }
         }
 
-        let image = PhotonImage::new(raw_pixels, 64, 48);
-
-        Ok(image)
+        Ok(thumbnail)
     }
 
-    pub fn save_image_as(&self, path: impl Into<std::path::PathBuf>) -> Result<()> {
-        let path: PathBuf = path.into();
-        let image = self.get_image()?;
-        
-        save_image(image, &path.to_string_lossy().to_string())?;
+    pub fn set_image(&mut self, image: &ImageWrapper) -> Result<()> {
+        let image = image.resize(64, 48)?;
+
+        let mut tiles = vec![PPMThumbnailTile::default(); 48];
+
+        for (i, tile) in tiles.iter_mut().enumerate() {
+            let tile_x = i % 8;
+            let tile_y = i / 8;
+
+            tile.pixels = vec![0; 32];
+
+            for (j, tile_pixel) in tile.pixels.iter_mut().enumerate() {
+                let pixel_x = j % 8;
+                let pixel_y = j / 8;
+
+                let pixel1 = image.get_pixel(
+                    tile_x as u32 * 8 + pixel_x as u32,
+                    tile_y as u32 * 8 + pixel_y as u32,
+                )?;
+                let pixel2 = image.get_pixel(
+                    tile_x as u32 * 8 + pixel_x as u32 + 1,
+                    tile_y as u32 * 8 + pixel_y as u32,
+                )?;
+
+                *tile_pixel = rgb_to_thumbnail_pixel(&pixel1, &pixel2);
+            }
+        }
+
+        self.tiles = tiles;
+
+        Ok(())
+    }
+
+    pub fn set_image_from_path(&mut self, path: impl Into<PathBuf>) -> Result<()> {
+        let image = ImageWrapper::load(path)?;
+
+        self.set_image(&image)?;
 
         Ok(())
     }

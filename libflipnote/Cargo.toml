@@ -10,6 +10,11 @@ anyhow = "1.0.93"
 binrw = "0.14.1"
 #image processing library. takes microseconds to create an image vs milliseconds with image-rs
 photon-rs = "0.3.2"
+#signature validation & writing
+rsa = "0.9.6"
+sha1-checked = "0.10.0"
+
+rand = "0.8.5"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

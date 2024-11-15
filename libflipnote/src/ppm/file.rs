@@ -2,8 +2,15 @@ use std::{fs::File, path::PathBuf};
 
 use anyhow::{ensure, Result};
 use binrw::{binrw, BinRead, BinWrite};
+use rsa::{pkcs8::DecodePublicKey, rand_core, Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey};
+use sha1_checked::Sha1;
 
-use super::{constants::PPM_FORMAT_VERSION, thumbnail::PPMThumbnail};
+use crate::utils::crypto::hash_data;
+
+use super::{
+    constants::{FLIPNOTE_STUDIO_PUBLIC_KEY, PPM_FORMAT_VERSION},
+    thumbnail::PPMThumbnail,
+};
 
 #[binrw]
 #[brw(little)]
@@ -98,6 +105,14 @@ impl PPMFile {
         Ok(parsed)
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let mut cursor = std::io::Cursor::new(bytes);
+
+        let parsed = PPMFile::read(&mut cursor)?;
+
+        Ok(parsed)
+    }
+
     pub fn save_as(&self, path: impl Into<PathBuf>) -> Result<()> {
         let mut path: PathBuf = path.into();
 
@@ -105,11 +120,58 @@ impl PPMFile {
             path.set_extension("ppm");
         }
 
-        ensure!(path.extension().unwrap() == "ppm", "File must have a .ppm extension");
+        ensure!(
+            path.extension().unwrap() == "ppm",
+            "File must have a .ppm extension"
+        );
 
         let mut file = File::create(path)?;
 
         self.write(&mut file)?;
+
+        Ok(())
+    }
+
+    fn get_body(&self) -> Result<Vec<u8>> {
+        let mut body = vec![];
+
+        let mut cursor = std::io::Cursor::new(&mut body);
+
+        self.write(&mut cursor)?;
+
+        body.truncate(body.len() - 0x90); //cut off the signature & padding
+
+        Ok(body)
+    }
+
+    /// Verifies if the signature is valid, if true, the file can be played back on the official Flipnote Studio app.
+    pub fn verify_signature(&self) -> Result<bool> {
+        let public_key = RsaPublicKey::from_public_key_pem(FLIPNOTE_STUDIO_PUBLIC_KEY)?;
+
+        let hash = hash_data(&self.get_body()?);
+
+        Ok(public_key
+            .verify(
+                Pkcs1v15Sign::new::<Sha1>(),
+                hash.as_slice(),
+                self.signature.as_slice(),
+            )
+            .is_ok())
+    }
+
+    /// Signs the file with the provided private key. Takes a `RsaPrivateKey` from the [`rsa`](https://crates.io/crates/rsa) crate.
+    /// The key is not provided for legal reasons. If you have the file, you know what to do with it.
+    pub fn sign(&mut self, private_key: &RsaPrivateKey) -> Result<()> {
+        let hash = hash_data(&self.get_body()?);
+
+        let signature =
+            private_key.sign_with_rng(&mut rand_core::OsRng, Pkcs1v15Sign::new::<Sha1>(), &hash)?;
+
+        ensure!(signature.len() == 0x80, "Signature is not 0x80 bytes long");
+
+        self.signature = signature;
+
+        ensure!(self.verify_signature()?, "Signature is invalid");
 
         Ok(())
     }
