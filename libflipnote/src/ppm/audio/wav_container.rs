@@ -7,7 +7,7 @@ use hound::WavWriter;
 pub struct WavContainer {
     buffer: Vec<i16>,
     channels: u16,
-    sample_rate: u32,
+    sample_rate: i32,
     bits_per_sample: u16,
 }
 
@@ -15,7 +15,7 @@ impl WavContainer {
     pub fn from_samples(
         buffer: Vec<i16>,
         channels: u16,
-        sample_rate: u32,
+        sample_rate: i32,
         bits_per_sample: u16,
     ) -> Self {
         Self {
@@ -40,16 +40,18 @@ impl WavContainer {
 
         let spec = hound::WavSpec {
             channels: self.channels,
-            sample_rate: self.sample_rate,
-            bits_per_sample: self.bits_per_sample as u16,
+            sample_rate: self.sample_rate as u32,
+            bits_per_sample: self.bits_per_sample,
             sample_format: hound::SampleFormat::Int,
         };
 
         let mut writer = WavWriter::create(path, spec)?;
 
-        for sample in &self.buffer {
-            writer.write_sample(*sample)?;
+        for sample in self.buffer.to_owned() {
+            writer.write_sample(sample)?;
         }
+
+        writer.finalize()?;
 
         Ok(())
     }

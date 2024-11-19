@@ -27,7 +27,7 @@ pub struct PPMAudio {
     #[br(count = args.0)]
     sound_effect_flags: Vec<u8>,
 
-    #[brw(pad_before = (4 - args.1 % 4) % 4)]
+    #[brw(pad_before = 4 - (args.1 % 4))]
     //Sound Header
     bgm_track_size: u32,
     se1_track_size: u32,
@@ -53,7 +53,7 @@ impl PPMAudio {
     pub fn get_sound_track_samples(
         &self,
         track_type: PPMSoundTrackType,
-        frequency: u32,
+        frequency: i32,
     ) -> Result<Vec<i16>> {
         let track = match track_type {
             PPMSoundTrackType::BGM => &self.raw_bgm_track,
@@ -75,7 +75,7 @@ impl PPMAudio {
 
         if track_type == PPMSoundTrackType::BGM {
             let bgm_adjust = (1.0 / speed) / (1.0 / frame_rate);
-            source_frequency = (source_frequency as f32 * bgm_adjust) as u32;
+            source_frequency = (source_frequency as f32 * bgm_adjust) as i32;
         }
 
         if source_frequency != frequency {
@@ -87,10 +87,10 @@ impl PPMAudio {
 
     /// Gets raw PCM samples for the mixed soundtrack at the desired frequency (resampled if necessary using nearest neighbor)
     /// This includes all sound effects mixed with the BGM according to sound effect flags.
-    pub fn get_mixed_sound_track_samples(&self, frequency: u32) -> Result<Vec<i16>> {
+    pub fn get_mixed_sound_track_samples(&self, frequency: i32) -> Result<Vec<i16>> {
         let duration = self.get_duration()?.ceil();
 
-        let mut master_samples = vec![0; (duration * frequency as f32).ceil() as usize + 2];
+        let mut master_samples = vec![0; (duration * frequency as f32).ceil() as usize];
 
         if !self.raw_bgm_track.is_empty() {
             let bgm_samples = self.get_sound_track_samples(PPMSoundTrackType::BGM, frequency)?;
@@ -104,17 +104,17 @@ impl PPMAudio {
         let se3_samples = self.get_sound_track_samples(PPMSoundTrackType::SE3, frequency)?;
 
         for (i, flag) in self.sound_effect_flags.iter().enumerate() {
-            let offset = i * samples_per_frame as usize;
+            let offset = (i as f64 * samples_per_frame as f64).ceil() as usize;
 
-            if !se1_samples.is_empty() && *flag == 1 {
+            if !self.raw_se1_track.is_empty() && flag & 0x1 != 0 {
                 master_samples = mix_pcm_audio(&se1_samples, &master_samples, offset)?;
             }
 
-            if !se2_samples.is_empty() && *flag == 2 {
+            if !self.raw_se2_track.is_empty() && flag & 0x2 != 0 {
                 master_samples = mix_pcm_audio(&se2_samples, &master_samples, offset)?;
             }
 
-            if !se3_samples.is_empty() && *flag == 4 {
+            if !self.raw_se3_track.is_empty() && flag & 0x4 != 0 {
                 master_samples = mix_pcm_audio(&se3_samples, &master_samples, offset)?;
             }
         }
@@ -124,7 +124,7 @@ impl PPMAudio {
 
     /// Returns a WavContainer for the mixed soundtrack at the desired frequency (resampled if necessary using nearest neighbor)
     /// This includes all sound effects mixed with the BGM according to sound effect flags.
-    pub fn get_mixed_sound_track_wav(&self, frequency: u32) -> Result<WavContainer> {
+    pub fn get_mixed_sound_track_wav(&self, frequency: i32) -> Result<WavContainer> {
         let samples = self.get_mixed_sound_track_samples(frequency)?;
 
         let wav = WavContainer::from_samples(samples, 1, frequency, 16);
@@ -156,10 +156,10 @@ impl PPMAudio {
 
     /// Returns the duration of the animation
     pub fn get_duration(&self) -> Result<f32> {
-        let frame_count = self.sound_effect_flags.len() as f32;
+        let frame_count = self.sound_effect_flags.len() - 1;
         let framerate = self.get_framerate()?;
 
-        let duratrion = ((frame_count * 100.0) * (1.0 / framerate)) / 100.0;
+        let duratrion = (((frame_count * 100) as f32) * (1.0 / framerate)) / 100.0;
 
         Ok(duratrion)
     }
@@ -168,7 +168,7 @@ impl PPMAudio {
     pub fn get_sound_track_wav(
         &self,
         track_type: PPMSoundTrackType,
-        frequency: u32,
+        frequency: i32,
     ) -> Result<WavContainer> {
         let samples = self.get_sound_track_samples(track_type, frequency)?;
 

@@ -1,6 +1,11 @@
-use std::{fs::File, path::PathBuf};
+use std::{
+    fs::File,
+    io::Write,
+    path::PathBuf,
+    process::{Command, Stdio},
+};
 
-use anyhow::{ensure, Result};
+use anyhow::{bail, ensure, Result};
 use binrw::{binrw, BinRead, BinWrite};
 use rsa::{pkcs8::DecodePublicKey, rand_core, Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey};
 use sha1_checked::Sha1;
@@ -10,6 +15,7 @@ use crate::utils::crypto::hash_data;
 use super::{
     audio::audio::PPMAudio,
     constants::{FLIPNOTE_STUDIO_PUBLIC_KEY, PPM_FORMAT_VERSION},
+    frames::animation_data::PPMAnimationData,
     thumbnail::PPMThumbnail,
 };
 
@@ -42,26 +48,19 @@ pub struct PPMFile {
     #[brw(pad_before = 2)]
     pub thumbnail: PPMThumbnail,
 
+    // Animation Data
     #[brw(seek_before = std::io::SeekFrom::Start(0x6A0))]
-    frame_offset_table_size: u16,
-    #[brw(pad_before = 4)] //unknown, always seen as 0 so we just pad instead.
-    animation_flags: u16,
-
-    //Frame Data
-    #[br(count = frame_count + 1)]
-    animation_offsets: Vec<u32>,
-    #[brw(seek_before = std::io::SeekFrom::Start((0x6A8 + frame_offset_table_size) as u64))]
-    #[br(count = animation_data_size)]
-    animation_data: Vec<u8>,
+    #[brw(args((frame_count + 1, animation_data_size.to_owned())))]
+    pub animation_data: PPMAnimationData,
 
     //not part of the spec, just a bit more readable to calculate this here instead. Used to calc padding before sound header.
     #[br(calc((0x6A0 + animation_data_size + ((frame_count + 1) as u32)) as u64))]
     #[bw(ignore)]
     _sound_header_start: u64,
 
-    //Sound Header
+    //Sound Data
     #[brw(seek_before = std::io::SeekFrom::Start((0x6A0 + animation_data_size) as u64))]
-    #[brw(args((frame_count + 1, _sound_header_start + 1 - 1)))]
+    #[brw(args((frame_count + 1, _sound_header_start.to_owned())))]
     pub audio: PPMAudio,
 
     //Signature
@@ -153,6 +152,72 @@ impl PPMFile {
         self.signature = signature;
 
         ensure!(self.verify_signature()?, "Signature is invalid");
+
+        Ok(())
+    }
+
+    pub fn export_video(&self, path: impl Into<PathBuf>) -> Result<()> {
+        // use the ffmpeg crate to encode the video. for now we only want to render the frames.
+
+        let frames = self.animation_data.get_frames()?;
+
+        let framerate = self.audio.get_framerate()?;
+
+        let path: PathBuf = path.into();
+
+        unsafe {
+            libc::mkfifo("audio".as_ptr() as *const i8, 0o777);
+            libc::mkfifo("video".as_ptr() as *const i8, 0o777);
+        };
+
+        let mut audio_file = File::create("audio")?;
+        let mut stdin = File::create("video")?;
+
+        let wav_data = self
+            .audio
+            .get_mixed_sound_track_samples(32768)?
+            .iter()
+            .map(|s| s.to_le_bytes())
+            .flatten()
+            .collect::<Vec<u8>>();
+
+        audio_file.write_all(&wav_data)?;
+
+        frames.iter().try_for_each(|f| {
+            let image = f.get_image()?;
+
+            let buffer = image.get_raw_pixels();
+
+            stdin.write_all(&buffer)?;
+
+            Result::<_, anyhow::Error>::Ok(())
+        })?;
+
+        //ffmpeg command preparation
+        let ffmpeg = Command::new("ffmpeg")
+            .arg("-y")
+            .args(["-f", "rawvideo"])
+            .args(["-pix_fmt", "rgba"])
+            .args(["-video_size", "256x192"])
+            .arg("-framerate")
+            .arg((framerate as i32).to_string())
+            .args(["-i", "video"])
+            .args(["-f", "s16le", "-sample_rate", "32768"])
+            .args(["-i", "audio"])
+            .args(["-c:v", "libx264"])
+            .arg(path.to_string_lossy().to_string())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+
+        let output = ffmpeg.wait_with_output()?;
+
+        Command::new("rm").arg("audio").arg("video").spawn()?;
+
+        if !output.status.success() {
+            bail!("ffmpeg failed: {:?}", output.status);
+        }
 
         Ok(())
     }

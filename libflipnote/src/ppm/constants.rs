@@ -1,3 +1,5 @@
+use crate::utils::image_utils::RgbWrapper;
+
 pub const PPM_FORMAT_VERSION: u16 = 0x24;
 pub const PPM_THUMBNAIL_SIZE: usize = 1536;
 pub const PPM_THUMBNAIL_COLORS: [&str; 16] = [
@@ -5,9 +7,28 @@ pub const PPM_THUMBNAIL_COLORS: [&str; 16] = [
     "#4840FF", "#514FB8", "#ADABFF", "#00FF00", "#B657B7", "#00FF00", "#00FF00", "#00FF00",
 ];
 
-pub const PPM_PAPER_COLORS: [&str; 2] = ["#0e0e0e", "#ffffff"];
-pub const PPM_COLOR_RED: &str = "#ff2a2a";
-pub const PPM_COLOR_BLUE: &str = "#0a39ff";
+pub const PPM_PAPER_COLORS: [RgbWrapper; 2] = [
+    RgbWrapper {
+        r: 255,
+        g: 255,
+        b: 255,
+    },
+    RgbWrapper {
+        r: 14,
+        g: 14,
+        b: 14,
+    },
+];
+pub const PPM_COLOR_RED: RgbWrapper = RgbWrapper {
+    r: 255,
+    g: 42,
+    b: 42,
+};
+pub const PPM_COLOR_BLUE: RgbWrapper = RgbWrapper {
+    r: 10,
+    g: 57,
+    b: 255,
+};
 
 pub const PPM_FRAMERATE: [f32; 9] = [0.5, 0.5, 1.0, 2.0, 4.0, 6.0, 12.0, 20.0, 30.0];
 

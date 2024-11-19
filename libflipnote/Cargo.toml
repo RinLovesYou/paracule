@@ -15,6 +15,8 @@ rsa = "0.9.6"
 sha1-checked = "0.10.0"
 #wav file creation
 hound = "3.5.1"
+#pipes for ffmpeg
+libc = "0.2.164"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

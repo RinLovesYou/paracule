@@ -6,7 +6,7 @@ Yet another flipnote library
 - [x] Reading and Writing
 - [x] Rendering Thumbnail
 - [x] Setting Custom Image as Thumbnail 
-- [ ] Rendering Frames/Video
+- [x] Rendering Frames/Video
 - [ ] Replacing Video
 - [x] Parsing Sound Data & Resampling
 - [ ] Replacing Sound Data 

@@ -7,7 +7,7 @@ use photon_rs::{
     PhotonImage,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct RgbWrapper {
     pub r: u8,
     pub g: u8,
@@ -58,6 +58,12 @@ impl ImageWrapper {
         })
     }
 
+    pub fn get_buffer(&self) -> Result<Vec<u8>> {
+        let image = PhotonImage::new(self.buffer.clone(), self.width, self.height);
+
+        Ok(image.get_bytes())
+    }
+
     pub fn save_as(&self, path: impl Into<PathBuf>) -> Result<()> {
         let path: PathBuf = path.into();
         let image = PhotonImage::new(self.buffer.clone(), self.width, self.height);
@@ -67,8 +73,10 @@ impl ImageWrapper {
         Ok(())
     }
 
-    pub fn set_pixel(&mut self, x: u32, y: u32, color: RgbWrapper) -> Result<()> {
+    pub fn set_pixel(&mut self, x: u32, y: u32, color: &RgbWrapper) -> Result<()> {
         let index = ((y * self.width + x) * 4) as usize;
+
+        ensure!(index + 4 <= self.buffer.len(), "Pixel out of bounds");
 
         self.buffer[index..index + 4].copy_from_slice(&[color.r, color.g, color.b, 255]);
 
@@ -95,6 +103,10 @@ impl ImageWrapper {
             .collect();
 
         Ok(pixels)
+    }
+
+    pub fn get_raw_pixels(&self) -> Vec<u8> {
+        self.buffer.clone()
     }
 
     fn get_photon_image(&self) -> PhotonImage {

@@ -26,8 +26,8 @@ impl PPMThumbnailTile {
             let pixel_x = (i % 4) * 2;
             let pixel_y = i / 4;
 
-            image.set_pixel(pixel_x as u32, pixel_y as u32, colors.0)?;
-            image.set_pixel(pixel_x as u32 + 1, pixel_y as u32, colors.1)?;
+            image.set_pixel(pixel_x as u32, pixel_y as u32, &colors.0)?;
+            image.set_pixel(pixel_x as u32 + 1, pixel_y as u32, &colors.1)?;
         }
 
         Ok(image)
@@ -58,7 +58,7 @@ impl PPMThumbnail {
                 thumbnail.set_pixel(
                     tile_x as u32 * 8 + pixel_x as u32,
                     tile_y as u32 * 8 + pixel_y as u32,
-                    *pixel,
+                    pixel,
                 )?;
             }
         }

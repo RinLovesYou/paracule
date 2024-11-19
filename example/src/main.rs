@@ -1,9 +1,13 @@
 use anyhow::{ensure, Result};
-use libflipnote::ppm::file::PPMFile;
+use libflipnote::ppm::{audio::audio::PPMSoundTrackType, file::PPMFile};
 
-const FLIPNOTE_FILE: &[u8] = include_bytes!("../flipnotes/bokeh.ppm");
+const FLIPNOTE_FILE: &[u8] = include_bytes!("../flipnotes/mrjohn.ppm");
 
-fn main() -> Result<()> {
+pub fn main() {
+    run().unwrap();
+}
+
+fn run() -> Result<()> {
     // Load a PPM file
     let ppm_file = PPMFile::from_bytes(FLIPNOTE_FILE)?;
 
@@ -11,13 +15,22 @@ fn main() -> Result<()> {
     ppm_file
         .thumbnail
         .get_image()?
-        .save_as("/home/sarah/Pictures/bokeh_thumbnail.png")?;
+        .save_as("/home/sarah/Pictures/mrjohn_thumbnail.png")?;
 
     // Save all audio (including sound effects) as WAV files
     ppm_file
         .audio
         .get_mixed_sound_track_wav(32768)?
-        .save_as("/home/sarah/Music/bokeh.wav")?;
+        .save_as("/home/sarah/Music/mrjohn.wav")?;
+
+    // Save only a sound effect
+    ppm_file
+        .audio
+        .get_sound_track_wav(PPMSoundTrackType::SE1, 32768)?
+        .save_as("/home/sarah/Music/mrjohn_se1.wav")?;
+
+    // Export the video as an MP4 file. Requires ffmpeg to be installed.
+    ppm_file.export_video("/home/sarah/Videos/mrjohn.mp4")?;
 
     // Verify the signature
     ensure!(
@@ -26,7 +39,7 @@ fn main() -> Result<()> {
     );
 
     // Save the PPM file as a new file
-    ppm_file.save_as("/home/sarah/Pictures/bokeh.ppm")?;
+    ppm_file.save_as("/home/sarah/Pictures/mrjohn.ppm")?;
 
     Ok(())
 }
