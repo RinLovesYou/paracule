@@ -57,7 +57,7 @@ impl PPMLayerColor {
 #[brw(little)]
 #[derive(Debug, Clone, Default)]
 pub struct PPMFrameHeader {
-    header: u8,
+    pub header: u8,
 }
 
 impl PPMFrameHeader {

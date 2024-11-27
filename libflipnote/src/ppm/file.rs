@@ -16,7 +16,9 @@ use super::{
     audio::audio::PPMAudio,
     constants::{FLIPNOTE_STUDIO_PUBLIC_KEY, PPM_FORMAT_VERSION},
     frames::animation_data::PPMAnimationData,
+    parsers::{audio_parser, ppm_parser::ppm_parser},
     thumbnail::PPMThumbnail,
+    writers::audio_writer,
 };
 
 #[binrw]
@@ -24,6 +26,9 @@ use super::{
 #[brw(magic = b"PARA")]
 #[derive(Debug, Clone, Default)]
 pub struct PPMFile {
+    #[bw(ignore)]
+    #[br(parse_with = ppm_parser)]
+    pub original_data: Vec<u8>,
     //File Header
     animation_data_size: u32,
     sound_data_size: u32,
@@ -60,7 +65,9 @@ pub struct PPMFile {
 
     //Sound Data
     #[brw(seek_before = std::io::SeekFrom::Start((0x6A0 + animation_data_size) as u64))]
-    #[brw(args((frame_count + 1, _sound_header_start.to_owned())))]
+    //#[brw(args((frame_count + 1, _sound_header_start.to_owned())))]
+    #[br(parse_with = audio_parser::audio_parser, args(frame_count + 1, _sound_header_start.to_owned()))]
+    #[bw(write_with = audio_writer::audio_writer, args(frame_count + 1, _sound_header_start.to_owned()))]
     pub audio: PPMAudio,
 
     //Signature
@@ -125,10 +132,32 @@ impl PPMFile {
     }
 
     /// Verifies if the signature is valid, if true, the file can be played back on the official Flipnote Studio app.
+    /// This is verified by *writing* the file to a buffer, then hashing the buffer and verifying the signature.
+    /// Due to Adpcm being a lossy format, the hash will not match the original file. use [`PPMFile::verify_read_signature`] to verify the signature of the original data.
     pub fn verify_signature(&self) -> Result<bool> {
         let public_key = RsaPublicKey::from_public_key_pem(FLIPNOTE_STUDIO_PUBLIC_KEY)?;
 
         let hash = hash_data(&self.get_body()?);
+
+        Ok(public_key
+            .verify(
+                Pkcs1v15Sign::new::<Sha1>(),
+                hash.as_slice(),
+                self.signature.as_slice(),
+            )
+            .is_ok())
+    }
+
+    /// Verifies the signature of the original data. This is what you should use if you want to verify the signature of the original parsed data.
+    /// If you want to verify the signature of the data you have written, use [`PPMFile::verify_signature`]
+    pub fn verify_read_signature(&self) -> Result<bool> {
+        let mut body = self.original_data.clone();
+
+        body.truncate(body.len() - 0x90); //cut off the signature & padding
+
+        let public_key = RsaPublicKey::from_public_key_pem(FLIPNOTE_STUDIO_PUBLIC_KEY)?;
+
+        let hash = hash_data(&body);
 
         Ok(public_key
             .verify(
@@ -156,12 +185,12 @@ impl PPMFile {
         Ok(())
     }
 
-    pub fn export_video(&self, path: impl Into<PathBuf>) -> Result<()> {
+    pub fn export_video(&self, path: impl Into<PathBuf>, audio_sample_rate: i32) -> Result<()> {
         // use the ffmpeg crate to encode the video. for now we only want to render the frames.
 
         let frames = self.animation_data.get_frames()?;
 
-        let framerate = self.audio.get_framerate()?;
+        let framerate = self.audio.audio_header.get_framerate()?;
 
         let path: PathBuf = path.into();
 
@@ -173,9 +202,15 @@ impl PPMFile {
         let mut audio_file = File::create("audio")?;
         let mut stdin = File::create("video")?;
 
-        let wav_data = self
+        let audio = self
             .audio
-            .get_mixed_sound_track_samples(32768)?
+            .mixed_tracks
+            .to_owned()
+            .unwrap_or_default()
+            .resample(audio_sample_rate)?;
+
+        let wav_data = audio
+            .get_samples()
             .iter()
             .map(|s| s.to_le_bytes())
             .flatten()
@@ -202,7 +237,7 @@ impl PPMFile {
             .arg("-framerate")
             .arg((framerate as i32).to_string())
             .args(["-i", "video"])
-            .args(["-f", "s16le", "-sample_rate", "32768"])
+            .args(["-f", "s16le", "-sample_rate", &audio_sample_rate.to_string()])
             .args(["-i", "audio"])
             .args(["-c:v", "libx264"])
             .arg(path.to_string_lossy().to_string())

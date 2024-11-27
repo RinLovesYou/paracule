@@ -8,8 +8,9 @@ edition = "2021"
 anyhow = "1.0.93"
 #binary parsing library
 binrw = "0.14.1"
-#image processing library. takes microseconds to create an image vs milliseconds with other packages i've tried.
-photon-rs = "0.3.2"
+#image processing library.
+image = "0.24.7" #version locked due to dithord
+dithord = "0.4.1"
 #signature validation & writing
 rsa = "0.9.6"
 sha1-checked = "0.10.0"
