@@ -4,11 +4,11 @@ use anyhow::{ensure, Result};
 
 use crate::ppm::constants::{ADPCM_INDEX_TABLE, ADPCM_STEP_TABLE};
 
-pub fn decode_adpcm(data: &[u8]) -> Result<Vec<i16>> {
+pub fn decode_adpcm(data: &[u8], predictor: i16, step_index: u8) -> Result<Vec<i16>> {
     let mut output_samples = Vec::with_capacity(data.len() * 2);
 
-    let mut step_index = 0;
-    let mut predictor = 0;
+    let mut step_index = step_index as i32;
+    let mut predictor = predictor as i32;
 
     for &byte in data {
         for i in 0..2 {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use binrw::{BinRead, BinResult};
 
-use crate::ppm::{audio::{adpcm_decoder::{self, decode_adpcm}, audio::PPMAudio, audio_header::PPMAudioHeader, wav_container::WavContainer}, constants::PPM_AUDIO_SAMPLE_RATE};
+use crate::ppm::{audio::{adpcm_decoder::{self, decode_adpcm}, audio::{AudioTrackHeader, PPMAudio}, audio_header::PPMAudioHeader, wav_container::WavContainer}, constants::PPM_AUDIO_SAMPLE_RATE};
 
 #[binrw::parser(reader)]
 pub fn audio_parser(frame_count: u16, sound_header_start: u64) -> BinResult<PPMAudio> {
@@ -40,10 +40,13 @@ fn read_audio_data<T: binrw::io::Read + binrw::io::Seek>(reader: &mut T, size: u
     if size == 0 {
         return Ok(None);
     }
-    let mut data = vec![0u8; size as usize];
+
+    let track_header = AudioTrackHeader::read(reader)?;
+
+    let mut data = vec![0u8; (size - 4) as usize];
     reader.read_exact(&mut data)?;
 
-    let mut samples = decode_adpcm(&data)?;
+    let mut samples = decode_adpcm(&data, track_header.predictor, track_header.step_index)?;
 
     let frequency = PPM_AUDIO_SAMPLE_RATE;
     let mut source_frequency = PPM_AUDIO_SAMPLE_RATE;
