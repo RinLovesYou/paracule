@@ -43,6 +43,10 @@ impl WavContainer {
         self.buffer.to_owned()
     }
 
+    pub fn get_sample_rate(&self) -> i32 {
+        self.sample_rate
+    }
+
     pub fn save_as(&self, path: impl Into<PathBuf>) -> Result<()> {
         let mut path: PathBuf = path.into();
 
