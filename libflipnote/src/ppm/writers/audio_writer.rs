@@ -58,13 +58,13 @@ fn inner_writer<T: binrw::io::Write + binrw::io::Seek>(
 
     if !bgm_samples.is_empty() {
         let frequency = PPM_AUDIO_SAMPLE_RATE;
-        let mut source_frequency = PPM_AUDIO_SAMPLE_RATE;
+        let mut source_frequency = owned_audio.background_track.as_ref().unwrap().get_sample_rate();
 
         let frame_rate = owned_audio.audio_header.get_framerate()?;
         let bgm_framerate = owned_audio.audio_header.get_bgm_framerate()?;
 
         let bgm_adjust = (1.0 / bgm_framerate) / (1.0 / frame_rate);
-        source_frequency = (source_frequency as f32 / bgm_adjust) as i32;
+        source_frequency = (source_frequency as f32 * bgm_adjust) as u32;
 
         if source_frequency != frequency {
             let s = owned_audio.background_track.unwrap().resample(source_frequency)?;
