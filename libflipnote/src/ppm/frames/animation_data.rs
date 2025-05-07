@@ -18,7 +18,7 @@ pub struct PPMAnimationData {
     //Frame Data
     #[br(count = args.0)]
     animation_offsets: Vec<u32>,
-    
+
     #[brw(seek_before = std::io::SeekFrom::Start(0x6A8 + frame_offset_table_size.to_owned() as u64))]
     #[br(count = args.1)]
     animation_data: Vec<u8>,
@@ -35,7 +35,6 @@ impl PPMAnimationData {
         for offset in self.animation_offsets.iter() {
             cursor.seek(std::io::SeekFrom::Start(*offset as u64))?;
             let frame = PPMFrame::parse(&mut cursor, &self.animation_flags, previous_frame)?;
-
 
             previous_frame = Some(frame.clone());
             frames.push(frame);

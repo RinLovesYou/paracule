@@ -1,6 +1,13 @@
+use anyhow::Result;
 use binrw::{BinResult, BinWrite};
 
-use crate::ppm::{audio::{adpcm_encoder::encode_adpcm, audio::PPMAudio}, constants::PPM_AUDIO_SAMPLE_RATE};
+use crate::ppm::{
+    audio::{
+        adpcm_ima::encode_adpcm,
+        audio_data::{AdpcmImaHeader, PPMAudio},
+    },
+    constants::{ADPCM_STATE_HEADER_SIZE, PPM_AUDIO_SAMPLE_RATE, PPM_OFFSET_AUDIO_DATA_SIZE},
+};
 
 #[binrw::writer(writer)]
 pub fn audio_writer(obj: &PPMAudio, frame_count: u16, sound_header_start: u64) -> BinResult<()> {
@@ -19,37 +26,65 @@ fn inner_writer<T: binrw::io::Write + binrw::io::Seek>(
     audio: &PPMAudio,
     frame_count: u16,
     sound_header_start: u64,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let bgm = audio.background_track.to_owned();
     let se1 = audio.sound_effect_1_track.to_owned();
     let se2 = audio.sound_effect_2_track.to_owned();
     let se3 = audio.sound_effect_3_track.to_owned();
 
     let mut bgm_samples = Vec::new();
+    let mut bgm_header = AdpcmImaHeader::default();
+
     let mut se1_samples = Vec::new();
+    let mut se1_header = AdpcmImaHeader::default();
+
     let mut se2_samples = Vec::new();
+    let mut se2_header = AdpcmImaHeader::default();
+
     let mut se3_samples = Vec::new();
+    let mut se3_header = AdpcmImaHeader::default();
 
     let mut owned_audio = audio.to_owned();
 
+    let mut audio_data_size = 0;
+
     if let Some(bgm) = &bgm {
-        bgm_samples = encode_adpcm(&bgm.get_samples())?;
-        owned_audio.audio_header.bgm_track_size = bgm_samples.len() as u32;
+        (bgm_header, bgm_samples) = encode_adpcm(
+            &bgm.resample(audio.audio_header.get_bgm_sample_rate()?)?
+                .get_samples(),
+        )?;
+
+        owned_audio.audio_header.bgm_track_size =
+            (bgm_samples.len() + ADPCM_STATE_HEADER_SIZE) as u32;
+
+        audio_data_size += owned_audio.audio_header.bgm_track_size;
     }
 
     if let Some(se1) = &se1 {
-        se1_samples = encode_adpcm(&se1.get_samples())?;
-        owned_audio.audio_header.se1_track_size = se1_samples.len() as u32;
+        (se1_header, se1_samples) =
+            encode_adpcm(&se1.resample(PPM_AUDIO_SAMPLE_RATE)?.get_samples())?;
+        owned_audio.audio_header.se1_track_size =
+            (se1_samples.len() + ADPCM_STATE_HEADER_SIZE) as u32;
+
+        audio_data_size += owned_audio.audio_header.se1_track_size;
     }
 
     if let Some(se2) = &se2 {
-        se2_samples = encode_adpcm(&se2.get_samples())?;
-        owned_audio.audio_header.se2_track_size = se2_samples.len() as u32;
+        (se2_header, se2_samples) =
+            encode_adpcm(&se2.resample(PPM_AUDIO_SAMPLE_RATE)?.get_samples())?;
+        owned_audio.audio_header.se2_track_size =
+            (se2_samples.len() + ADPCM_STATE_HEADER_SIZE) as u32;
+
+        audio_data_size += owned_audio.audio_header.se2_track_size;
     }
 
     if let Some(se3) = &se3 {
-        se3_samples = encode_adpcm(&se3.get_samples())?;
-        owned_audio.audio_header.se3_track_size = se3_samples.len() as u32;
+        (se3_header, se3_samples) =
+            encode_adpcm(&se3.resample(PPM_AUDIO_SAMPLE_RATE)?.get_samples())?;
+        owned_audio.audio_header.se3_track_size =
+            (se3_samples.len() + ADPCM_STATE_HEADER_SIZE) as u32;
+
+        audio_data_size += owned_audio.audio_header.se3_track_size;
     }
 
     owned_audio
@@ -57,34 +92,29 @@ fn inner_writer<T: binrw::io::Write + binrw::io::Seek>(
         .write_args(writer, ((frame_count, sound_header_start),))?;
 
     if !bgm_samples.is_empty() {
-        let frequency = PPM_AUDIO_SAMPLE_RATE;
-        let mut source_frequency = owned_audio.background_track.as_ref().unwrap().get_sample_rate();
-
-        let frame_rate = owned_audio.audio_header.get_framerate()?;
-        let bgm_framerate = owned_audio.audio_header.get_bgm_framerate()?;
-
-        let bgm_adjust = (1.0 / bgm_framerate) / (1.0 / frame_rate);
-        source_frequency = (source_frequency as f32 * bgm_adjust) as i32;
-
-        if source_frequency != frequency {
-            let s = owned_audio.background_track.unwrap().resample(source_frequency)?;
-            bgm_samples = encode_adpcm(&s.get_samples())?;
-        }
-
+        bgm_header.write(writer)?;
         writer.write_all(&bgm_samples)?;
     }
 
     if !se1_samples.is_empty() {
+        se1_header.write(writer)?;
         writer.write_all(&se1_samples)?;
     }
 
     if !se2_samples.is_empty() {
+        se2_header.write(writer)?;
         writer.write_all(&se2_samples)?;
     }
 
     if !se3_samples.is_empty() {
+        se3_header.write(writer)?;
         writer.write_all(&se3_samples)?;
     }
+
+    let current_pos = writer.stream_position()?;
+    writer.seek(std::io::SeekFrom::Start(PPM_OFFSET_AUDIO_DATA_SIZE))?;
+    writer.write_all(&audio_data_size.to_le_bytes())?;
+    writer.seek(std::io::SeekFrom::Start(current_pos))?;
 
     Ok(())
 }

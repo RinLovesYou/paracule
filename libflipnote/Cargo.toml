@@ -1,13 +1,13 @@
 [package]
 name = "libflipnote"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 #ez error handling
 anyhow = "1.0.93"
 #binary parsing library
-binrw = "0.14.1"
+binrw = "0.15.0"
 #image processing library.
 image = "0.24.7" #version locked due to dithord
 dithord = "0.4.1"
@@ -18,6 +18,12 @@ sha1-checked = "0.10.0"
 hound = "3.5.1"
 #pipes for ffmpeg
 libc = "0.2.164"
+#audio resampling and mixing.
+fon = { git = "https://github.com/ardaku/fon", branch = "v1" }
+audio-codec-algorithms = "0.7.0"
+rubato = "0.16.2"
+
+symphonia = { version = "0.5.4", features = ["all"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]

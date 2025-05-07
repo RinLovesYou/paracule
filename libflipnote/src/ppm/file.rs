@@ -5,15 +5,15 @@ use std::{
     process::{Command, Stdio},
 };
 
-use anyhow::{bail, ensure, Result};
-use binrw::{binrw, BinRead, BinWrite};
-use rsa::{pkcs8::DecodePublicKey, rand_core, Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey};
+use anyhow::{Result, bail, ensure};
+use binrw::{BinRead, BinWrite, binrw};
+use rsa::{Pkcs1v15Sign, RsaPrivateKey, RsaPublicKey, pkcs8::DecodePublicKey, rand_core};
 use sha1_checked::Sha1;
 
 use crate::utils::crypto::hash_data;
 
 use super::{
-    audio::audio::PPMAudio,
+    audio::audio_data::PPMAudio,
     constants::{FLIPNOTE_STUDIO_PUBLIC_KEY, PPM_FORMAT_VERSION},
     frames::animation_data::PPMAnimationData,
     parsers::{audio_parser, ppm_parser::ppm_parser},
@@ -78,10 +78,10 @@ pub struct PPMFile {
 
 impl PPMFile {
     pub fn new() -> Self {
-        let mut file = Self::default();
-        file.format_version = PPM_FORMAT_VERSION;
-
-        file
+        Self {
+            format_version: PPM_FORMAT_VERSION,
+            ..Default::default()
+        }
     }
 
     pub fn from_path(path: impl Into<PathBuf>) -> Result<Self> {
@@ -212,8 +212,7 @@ impl PPMFile {
         let wav_data = audio
             .get_samples()
             .iter()
-            .map(|s| s.to_le_bytes())
-            .flatten()
+            .flat_map(|s| s.to_le_bytes())
             .collect::<Vec<u8>>();
 
         audio_file.write_all(&wav_data)?;
@@ -237,7 +236,12 @@ impl PPMFile {
             .arg("-framerate")
             .arg((framerate as i32).to_string())
             .args(["-i", "video"])
-            .args(["-f", "s16le", "-sample_rate", &audio_sample_rate.to_string()])
+            .args([
+                "-f",
+                "s16le",
+                "-sample_rate",
+                &audio_sample_rate.to_string(),
+            ])
             .args(["-i", "audio"])
             .args(["-c:v", "libx264"])
             .arg(path.to_string_lossy().to_string())

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 
 use super::line::{LineEncoding, PPMLine};
 
@@ -28,7 +28,7 @@ impl PPMLayer {
         layer
     }
 
-    pub fn parse(&mut self, cursor: &mut Cursor<&[u8]>,) -> Result<()> {
+    pub fn parse(&mut self, cursor: &mut Cursor<&[u8]>) -> Result<()> {
         for line in self.lines.iter_mut() {
             line.parse(cursor)?;
         }

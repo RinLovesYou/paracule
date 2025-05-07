@@ -1,5 +1,8 @@
 use anyhow::{ensure, Result};
-use libflipnote::{ppm::file::PPMFile, utils::image_utils::ImageWrapper};
+use libflipnote::{
+    ppm::{constants::PPM_AUDIO_PLAYBACK_SAMPLE_RATE, file::PPMFile},
+    utils::image_utils::ImageWrapper,
+};
 
 const FLIPNOTE_FILE: &[u8] = include_bytes!("../flipnotes/mrjohn.ppm");
 
@@ -10,34 +13,37 @@ pub fn main() {
 fn run() -> Result<()> {
     // Load a PPM file
     let mut ppm_file = PPMFile::from_bytes(FLIPNOTE_FILE)?;
-    
+
     // Replace the thumbnail with another one
     ppm_file.thumbnail.set_image(&ImageWrapper::load(
-        "/home/sarah/Pictures/73-1614629524-1044199087.webp",
+        "/home/sarah/Pictures/thumbnail.jpg",
     )?)?;
-    
+
     // Save the thumbnail as a PNG file
     ppm_file
         .thumbnail
         .get_image()?
         .save_as("/home/sarah/Pictures/mrjohn_thumbnail.png")?;
 
-
     // Save all audio (including sound effects) as a WAV file
     if let Some(mixed) = ppm_file.audio.mixed_tracks.as_ref() {
-        mixed
-            .resample(32768)?
-            .save_as("/home/sarah/Music/mrjohn_mixed.wav")?;
+        mixed.save_as("/home/sarah/Music/mrjohn_mixed.wav")?;
+    }
+
+    if let Some(bgm) = ppm_file.audio.background_track.as_ref() {
+        bgm.save_as("/home/sarah/Music/mrjohn_bgm.wav")?;
     }
 
     // Save only a sound effect
     if let Some(se1) = ppm_file.audio.sound_effect_1_track.as_ref() {
-        se1.resample(32768)?
-            .save_as("/home/sarah/Music/mrjohn_se1.wav")?;
+        se1.save_as("/home/sarah/Music/mrjohn_se1.wav")?;
     }
 
     // Export the video as an MP4 file. Requires ffmpeg to be installed.
-    ppm_file.export_video("/home/sarah/Videos/mrjohn.mp4", 32768)?;
+    ppm_file.export_video(
+        "/home/sarah/Videos/mrjohn.mp4",
+        PPM_AUDIO_PLAYBACK_SAMPLE_RATE,
+    )?;
 
     // Verify the signature
     ensure!(

@@ -30,11 +30,12 @@ impl PPMFrame {
         flags: &PPMAnimationFlags,
         previous_frame: Option<PPMFrame>,
     ) -> Result<Self> {
-        let mut frame = Self::default();
-        frame.hide_layer_1 = flags.get_hide_layer(1)?;
-        frame.hide_layer_2 = flags.get_hide_layer(2)?;
-
-        frame.header = cursor.read_le()?;
+        let mut frame = Self {
+            hide_layer_1: flags.get_hide_layer(1)?,
+            hide_layer_2: flags.get_hide_layer(2)?,
+            header: cursor.read_le()?,
+            ..Default::default()
+        };
 
         if frame.header.get_is_translated() {
             frame.translate_x = cursor.read_le()?;
@@ -43,7 +44,7 @@ impl PPMFrame {
 
         for layer in frame.layers.iter_mut() {
             let mut encodings_compressed = [0u8; 0x30];
-            cursor.read(&mut encodings_compressed)?;
+            let _ = cursor.read(&mut encodings_compressed)?;
 
             let mut encoding_index = 0;
 

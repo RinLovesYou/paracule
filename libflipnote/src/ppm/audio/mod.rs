@@ -1,5 +1,4 @@
-pub mod adpcm_decoder;
-pub mod audio;
-pub mod wav_container;
+pub mod adpcm_ima;
+pub mod audio_data;
 pub mod audio_header;
-pub mod adpcm_encoder;
+pub mod wav_container;

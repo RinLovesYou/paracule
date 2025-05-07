@@ -1,7 +1,7 @@
 use anyhow::Result;
 use binrw::binrw;
 
-use crate::ppm::constants::PPM_FRAMERATE;
+use crate::ppm::constants::{PPM_AUDIO_SAMPLE_RATE, PPM_FRAMERATE};
 
 #[binrw]
 #[brw(little)]
@@ -54,5 +54,18 @@ impl PPMAudioHeader {
         let duratrion = (((frame_count * 100) as f32) * (1.0 / framerate)) / 100.0;
 
         Ok(duratrion)
+    }
+
+    pub fn get_bgm_sample_rate(&self) -> Result<i32> {
+        // (PPM_AUDIO_SAMPLE_RATE as f32)
+        //     * ((1.0 / header.get_bgm_framerate()?) / (1.0 / header.get_framerate()?)))
+        // .floor() as i32
+
+        let framerate = self.get_framerate()?;
+        let bgm_framerate = self.get_bgm_framerate()?;
+
+        let bgm_adjust = (1.0 / bgm_framerate) / (1.0 / framerate);
+
+        Ok((PPM_AUDIO_SAMPLE_RATE as f32 * bgm_adjust).floor() as i32)
     }
 }

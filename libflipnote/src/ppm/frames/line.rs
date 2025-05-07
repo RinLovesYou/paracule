@@ -2,7 +2,7 @@
 
 use std::io::Cursor;
 
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 use binrw::BinReaderExt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -65,7 +65,7 @@ impl PPMLine {
             self.data = vec![1u8; 256];
         }
 
-        while chunk_flags & 0xFFFFFFFF != 0 {
+        while chunk_flags != 0 {
             if chunk_flags & 0x80000000 != 0 {
                 let chunk = cursor.read_le::<u8>()?;
 

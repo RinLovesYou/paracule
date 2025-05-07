@@ -18,8 +18,9 @@ pub struct PPMAudio {
 
 #[binrw]
 #[brw(little)]
-pub struct AudioTrackHeader {
+#[derive(Debug, Clone, Default)]
+pub struct AdpcmImaHeader {
     pub predictor: i16,
     pub step_index: u8,
-    pub imported: u8,
+    pub unused: u8,
 }

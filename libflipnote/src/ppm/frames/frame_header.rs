@@ -1,7 +1,10 @@
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 use binrw::binrw;
 
-use crate::{ppm::constants::{PPM_COLOR_BLUE, PPM_COLOR_RED, PPM_PAPER_COLORS}, utils::image_utils::RgbWrapper};
+use crate::{
+    ppm::constants::{PPM_COLOR_BLUE, PPM_COLOR_RED, PPM_PAPER_COLORS},
+    utils::image_utils::RgbWrapper,
+};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum PPMFrameType {
@@ -17,11 +20,12 @@ pub enum PPMPaperColor {
     Black,
 }
 
-impl Into<usize> for PPMPaperColor {
-    fn into(self) -> usize {
-        match self {
-            PPMPaperColor::White => 0,
-            PPMPaperColor::Black => 1,
+impl From<usize> for PPMPaperColor {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => PPMPaperColor::White,
+            1 => PPMPaperColor::Black,
+            _ => unreachable!(),
         }
     }
 }
@@ -37,7 +41,7 @@ pub enum PPMLayerColor {
     #[default]
     InverseOfPaper,
     Red,
-    Blue
+    Blue,
 }
 
 impl PPMLayerColor {
@@ -65,7 +69,7 @@ impl PPMFrameHeader {
         match (self.header >> 7) & 0x1 {
             0 => PPMFrameType::Diffed,
             _ => PPMFrameType::Normal,
-        } 
+        }
     }
 
     pub fn set_frame_type(&mut self, frame_type: PPMFrameType) {
@@ -78,10 +82,7 @@ impl PPMFrameHeader {
     }
 
     pub fn get_is_translated(&self) -> bool {
-        match (self.header >> 5) & 0x3 {
-            0 => false,
-            _ => true,
-        }
+        !matches!((self.header >> 5) & 0x3, 0)
     }
 
     pub fn set_is_translated(&mut self, value: bool) {
@@ -96,7 +97,7 @@ impl PPMFrameHeader {
     pub fn get_paper_color(&self) -> PPMPaperColor {
         match self.header & 0x1 {
             0 => PPMPaperColor::Black,
-            _ => PPMPaperColor::White
+            _ => PPMPaperColor::White,
         }
     }
 
@@ -143,5 +144,4 @@ impl PPMFrameHeader {
 
         Ok(())
     }
-
 }

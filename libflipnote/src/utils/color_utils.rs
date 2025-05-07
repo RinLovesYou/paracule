@@ -1,6 +1,8 @@
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 
-use crate::ppm::constants::{PPM_COLOR_BLUE, PPM_COLOR_RED, PPM_PAPER_COLORS, PPM_THUMBNAIL_COLORS};
+use crate::ppm::constants::{
+    PPM_COLOR_BLUE, PPM_COLOR_RED, PPM_PAPER_COLORS, PPM_THUMBNAIL_COLORS,
+};
 
 use super::image_utils::RgbWrapper;
 
@@ -68,7 +70,7 @@ pub fn rgb_to_ppm_frame_pixel(color: &RgbWrapper) -> usize {
         PPM_PAPER_COLORS[0],
         PPM_PAPER_COLORS[1],
         PPM_COLOR_RED,
-        PPM_COLOR_BLUE
+        PPM_COLOR_BLUE,
     ];
 
     let mut closest_distance = f32::MAX;

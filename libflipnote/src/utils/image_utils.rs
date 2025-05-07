@@ -1,9 +1,14 @@
-use std::path::PathBuf;
-use dithord::{ThresholdMap, OrderedDither};
 use anyhow::Result;
-use image::{imageops::{self, resize, ColorMap, FilterType}, DynamicImage, ImageBuffer, Rgba, RgbaImage};
+use dithord::{OrderedDither, ThresholdMap};
+use image::{
+    DynamicImage, ImageBuffer, Rgba, RgbaImage,
+    imageops::{self, ColorMap, FilterType, resize},
+};
+use std::path::PathBuf;
 
-use crate::ppm::constants::{PPM_COLOR_BLUE, PPM_COLOR_RED, PPM_PAPER_COLORS, PPM_THUMBNAIL_COLORS};
+use crate::ppm::constants::{
+    PPM_COLOR_BLUE, PPM_COLOR_RED, PPM_PAPER_COLORS, PPM_THUMBNAIL_COLORS,
+};
 
 use super::color_utils::{hex_to_rgb, rgb_to_ppm_frame_pixel, single_rgb_to_thumbnail_pixel};
 
@@ -50,7 +55,9 @@ impl ColorMap for PPMThumbnailColorMap {
 
     #[inline(always)]
     fn lookup(&self, idx: usize) -> Option<Self::Color> {
-        hex_to_rgb(PPM_THUMBNAIL_COLORS[idx]).map(|rgb| Rgba([rgb.r, rgb.g, rgb.b, 255])).ok()
+        hex_to_rgb(PPM_THUMBNAIL_COLORS[idx])
+            .map(|rgb| Rgba([rgb.r, rgb.g, rgb.b, 255]))
+            .ok()
     }
 
     /// Indicate NeuQuant implements `lookup`.
@@ -119,7 +126,7 @@ pub struct ImageWrapper {
 impl ImageWrapper {
     pub fn new(width: u32, height: u32) -> ImageWrapper {
         ImageWrapper {
-            image: RgbaImage::new(width, height)
+            image: RgbaImage::new(width, height),
         }
     }
 
@@ -128,7 +135,7 @@ impl ImageWrapper {
         let image = image::open(path)?;
 
         Ok(ImageWrapper {
-            image: image.to_rgba8()
+            image: image.to_rgba8(),
         })
     }
 
@@ -155,7 +162,11 @@ impl ImageWrapper {
     }
 
     pub fn get_pixels(&self) -> Result<Vec<RgbWrapper>> {
-        let pixels = self.image.pixels().map(|p| RgbWrapper::new(p[0], p[1], p[2])).collect();
+        let pixels = self
+            .image
+            .pixels()
+            .map(|p| RgbWrapper::new(p[0], p[1], p[2]))
+            .collect();
 
         Ok(pixels)
     }
@@ -166,11 +177,15 @@ impl ImageWrapper {
 
     pub fn resize(&self, width: u32, height: u32) -> Result<ImageWrapper> {
         Ok(ImageWrapper {
-            image: resize(&self.image, width + 1, height + 1, FilterType::Nearest)
+            image: resize(&self.image, width + 1, height + 1, FilterType::Nearest),
         })
     }
 
-    pub fn dither(&self, dither_type: DitherType, color_map: impl ColorMap<Color = Rgba<u8>>) -> Result<ImageWrapper> {
+    pub fn dither(
+        &self,
+        dither_type: DitherType,
+        color_map: impl ColorMap<Color = Rgba<u8>>,
+    ) -> Result<ImageWrapper> {
         let map = match dither_type {
             DitherType::Bayer4x4 => ThresholdMap::level(1),
             DitherType::Bayer8x8 => ThresholdMap::level(2),
@@ -182,15 +197,15 @@ impl ImageWrapper {
 
         let mapped = ImageBuffer::from_fn(self.image.width(), self.image.height(), |x, y| {
             let p = palletized.get_pixel(x, y);
-            color_map.lookup(p.0[0] as usize)
+            color_map
+                .lookup(p.0[0] as usize)
                 .expect("indexed color out-of-range")
         });
 
         let image = DynamicImage::ImageRgba8(mapped).ordered_dither(&map);
-        
 
         Ok(ImageWrapper {
-            image: image.to_rgba8()
+            image: image.to_rgba8(),
         })
     }
 }
