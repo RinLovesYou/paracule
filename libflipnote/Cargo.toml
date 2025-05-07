@@ -21,9 +21,6 @@ libc = "0.2.164"
 #audio resampling and mixing.
 fon = { git = "https://github.com/ardaku/fon", branch = "v1" }
 audio-codec-algorithms = "0.7.0"
-rubato = "0.16.2"
-
-symphonia = { version = "0.5.4", features = ["all"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
