@@ -4,7 +4,7 @@ use libflipnote::{
     utils::image_utils::ImageWrapper,
 };
 
-const FLIPNOTE_FILE: &[u8] = include_bytes!("../flipnotes/mrjohn.ppm");
+const FLIPNOTE_FILE: &[u8] = include_bytes!("../flipnotes/bokeh.ppm");
 
 pub fn main() {
     run().unwrap();
@@ -15,33 +15,29 @@ fn run() -> Result<()> {
     let mut ppm_file = PPMFile::from_bytes(FLIPNOTE_FILE)?;
 
     // Replace the thumbnail with another one
-    ppm_file.thumbnail.set_image(&ImageWrapper::load(
-        "/home/sarah/Pictures/thumbnail.jpg",
-    )?)?;
+    ppm_file
+        .thumbnail
+        .set_image(&ImageWrapper::load("/home/sarah/Pictures/thumbnail.jpg")?)?;
 
     // Save the thumbnail as a PNG file
     ppm_file
         .thumbnail
         .get_image()?
-        .save_as("/home/sarah/Pictures/mrjohn_thumbnail.png")?;
+        .save_as("/home/sarah/Pictures/bokeh.png")?;
 
     // Save all audio (including sound effects) as a WAV file
     if let Some(mixed) = ppm_file.audio.mixed_tracks.as_ref() {
-        mixed.save_as("/home/sarah/Music/mrjohn_mixed.wav")?;
-    }
-
-    if let Some(bgm) = ppm_file.audio.background_track.as_ref() {
-        bgm.save_as("/home/sarah/Music/mrjohn_bgm.wav")?;
+        mixed.save_as("/home/sarah/Music/bokeh.wav")?;
     }
 
     // Save only a sound effect
     if let Some(se1) = ppm_file.audio.sound_effect_1_track.as_ref() {
-        se1.save_as("/home/sarah/Music/mrjohn_se1.wav")?;
+        se1.save_as("/home/sarah/Music/bokeh_se1.wav")?;
     }
 
     // Export the video as an MP4 file. Requires ffmpeg to be installed.
     ppm_file.export_video(
-        "/home/sarah/Videos/mrjohn.mp4",
+        "/home/sarah/Videos/bokeh.mp4",
         PPM_AUDIO_PLAYBACK_SAMPLE_RATE,
     )?;
 
@@ -52,7 +48,7 @@ fn run() -> Result<()> {
     );
 
     // Save the PPM file as a new file
-    ppm_file.save_as("/home/sarah/Pictures/mrjohn.ppm")?;
+    ppm_file.save_as("/home/sarah/Pictures/bokeh.ppm")?;
 
     Ok(())
 }
